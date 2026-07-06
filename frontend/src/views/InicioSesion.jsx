@@ -7,6 +7,32 @@ function InicioSesion({ onLogin, volver }) {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
+    const intentarLogin = async (url) => {
+
+        try {
+
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    usuario,
+                    password
+                })
+            });
+
+            const data = await response.json();
+            return data;
+
+        } catch {
+
+            return null;
+
+        }
+
+    };
+
     const iniciarSesion = async () => {
 
         if (!usuario || !password) {
@@ -14,40 +40,35 @@ function InicioSesion({ onLogin, volver }) {
             return;
         }
 
-        try {
+        setError("");
 
-            const response = await fetch(
-                "http://localhost:8080/api/login",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        usuario,
-                        password
-                    })
-                }
-            );
+        // 1. Intentar primero con Python (usuarios registrados)
+        const dataPython = await intentarLogin("http://localhost:6060/api/login");
 
-            const data = await response.json();
+        if (dataPython && dataPython.success) {
 
-            if (data.success) {
+            localStorage.setItem("usuario", dataPython.usuario);
+            onLogin(dataPython.usuario);
+            return;
 
-                localStorage.setItem("usuario", data.usuario);
+        }
 
-                onLogin(data.usuario);
+        // 2. Si falla, intentar con Scala (usuarios de prueba)
+        const dataScala = await intentarLogin("http://localhost:8080/api/login");
 
-            } else {
+        if (dataScala && dataScala.success) {
 
-                setError(data.message);
+            localStorage.setItem("usuario", dataScala.usuario);
+            onLogin(dataScala.usuario);
+            return;
 
-            }
+        }
 
-        } catch {
-
-            setError("No se pudo conectar con Scala");
-
+        // 3. Si ninguno funcionó
+        if (!dataPython && !dataScala) {
+            setError("No se pudo conectar con los servidores (Python 6060 / Scala 8080)");
+        } else {
+            setError("Credenciales incorrectas");
         }
 
     };
