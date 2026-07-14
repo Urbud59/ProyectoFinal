@@ -1,12 +1,9 @@
-FROM sbtscala/scala-sbt:eclipse-temurin-17.0.12_7_1.10.2_2.13.14
-
+FROM sbtscala/scala-sbt:eclipse-temurin-17.0.9_9_1.9.7_2.13.12 AS build
 WORKDIR /app
-
 COPY . .
+RUN sbt assembly
 
-RUN sbt update
-RUN sbt compile
-
-EXPOSE 8080
-
-CMD ["sbt", "run"]
+FROM eclipse-temurin:17-jre-jammy
+WORKDIR /app
+COPY --from=build /app/target/scala-2.13/SistemaGestion-assembly-0.1.jar app.jar
+CMD ["java", "-jar", "app.jar"]
